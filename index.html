@@ -600,12 +600,18 @@ function stopTimer(){ if(tId){clearInterval(tId);tId=null;} }
 
 /* отметки в кассу КОДа: она по Telegram ID ставит test_osanka в Salebot и шлёт команду test_osanka_done */
 const KASSA="https://functions.yandexcloud.net/d4ec95pbrvop0m7a9ivt";
+function tgUser(){ let raw=(tg&&tg.initData)||"", uid="";
+  if(!raw){ const m=(location.hash+"&"+location.search).match(/tgWebAppData=([^&]*)/); if(m){ try{ raw=decodeURIComponent(m[1]); }catch(e){} } }
+  try{ const u=(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user)||JSON.parse(new URLSearchParams(raw).get("user")||"null"); if(u&&u.id) uid=String(u.id); }catch(e){}
+  return {raw:raw, uid:uid}; }
 function hook(ev){ try{
-  const u=tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user; if(!u||!u.id) return;
-  const qs=new URLSearchParams(location.search), sp=tg.initDataUnsafe.start_param||"";
-  const p=new URLSearchParams({test:"osanka",ev:ev,uid:String(u.id),cid:qs.get("cid")||(/^\d+$/.test(sp)?sp:""),
-    q1:ans.q1||"",q2:ans.q2||"",q3:ans.q3||"",init:tg.initData||""});
-  fetch(KASSA+"?"+p.toString(),{mode:"no-cors",keepalive:true}).catch(()=>{});
+  const t=tgUser(), qs=new URLSearchParams(location.search), sp=(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.start_param)||"";
+  let cid=qs.get("cid")||""; if(!/^\d+$/.test(cid)) cid=/^\d+$/.test(sp)?sp:"";
+  if(!t.uid&&!cid) return;
+  const p=new URLSearchParams({test:"osanka",ev:ev,uid:t.uid,cid:cid,q1:ans.q1||"",q2:ans.q2||"",q3:ans.q3||"",init:t.raw,
+    sdk:window.Telegram&&window.Telegram.WebApp?"1":"0",pf:(tg&&tg.platform)||"",hs:location.hash?"1":"0",rc:(qs.get("cid")||"").slice(0,30)});
+  const url=KASSA+"?"+p.toString();
+  try{ fetch(url,{mode:"no-cors",keepalive:true}).catch(()=>{ new Image().src=url; }); }catch(e){ new Image().src=url; }
 }catch(e){} }
 function send(){
   hook("done"); hap("ok");
@@ -613,8 +619,9 @@ function send(){
   setTimeout(()=>{ t.classList.remove("on"); if(tg) tg.close(); else { for(const k in ans) delete ans[k]; go("intro"); } },2200);
 }
 
-if(tg){ try{ tg.ready(); tg.expand(); hook("open"); tg.setHeaderColor&&tg.setHeaderColor("#c4c5c9"); tg.setBackgroundColor&&tg.setBackgroundColor("#f2f2f3"); }catch(e){} }
+if(tg){ try{ tg.ready(); tg.expand(); tg.setHeaderColor&&tg.setHeaderColor("#c4c5c9"); tg.setBackgroundColor&&tg.setBackgroundColor("#f2f2f3"); }catch(e){} }
 renderPanel("intro",200);
+setTimeout(()=>hook("open"),400);
 window.addEventListener("resize",()=>{ if(step==="q3") drawArrows(); });
 </script>
 
